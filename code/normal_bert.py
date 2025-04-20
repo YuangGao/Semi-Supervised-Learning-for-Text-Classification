@@ -14,9 +14,11 @@ class ClassificationBert(nn.Module):
 
     def forward(self, x, length=256):
         # Encode input text
-        all_hidden, pooler = self.bert(x)
-
-        pooled_output = torch.mean(all_hidden, 1)
+        outputs = self.bert(x)
+        # Get the last hidden state
+        last_hidden_state = outputs.last_hidden_state
+        # Take mean of the last hidden state along the sequence dimension
+        pooled_output = torch.mean(last_hidden_state, dim=1)
         # Use linear layer to do the predictions
         predict = self.linear(pooled_output)
 

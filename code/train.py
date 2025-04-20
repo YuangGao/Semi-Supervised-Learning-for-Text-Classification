@@ -109,7 +109,7 @@ def main():
         dataset=test_set, batch_size=512, shuffle=False)
 
     # Define the model, set the optimizer
-    model = MixText(n_labels, args.mix_option).cuda()
+    model = MixText(n_labels, args.mix_option).to(device)
     model = nn.DataParallel(model)
     optimizer = AdamW(
         [
@@ -188,35 +188,35 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
 
         if not train_aug:
             try:
-                inputs_x, targets_x, inputs_x_length = labeled_train_iter.next()
-            except:
+                inputs_x, targets_x, inputs_x_length = next(labeled_train_iter)
+            except StopIteration:
                 labeled_train_iter = iter(labeled_trainloader)
-                inputs_x, targets_x, inputs_x_length = labeled_train_iter.next()
+                inputs_x, targets_x, inputs_x_length = next(labeled_train_iter)
         else:
             try:
                 (inputs_x, inputs_x_aug), (targets_x, _), (inputs_x_length,
-                                                           inputs_x_length_aug) = labeled_train_iter.next()
-            except:
+                                                           inputs_x_length_aug) = next(labeled_train_iter)
+            except StopIteration:
                 labeled_train_iter = iter(labeled_trainloader)
                 (inputs_x, inputs_x_aug), (targets_x, _), (inputs_x_length,
-                                                           inputs_x_length_aug) = labeled_train_iter.next()
+                                                           inputs_x_length_aug) = next(labeled_train_iter)
         try:
             (inputs_u, inputs_u2,  inputs_ori), (length_u,
-                                                 length_u2,  length_ori) = unlabeled_train_iter.next()
-        except:
+                                                 length_u2,  length_ori) = next(unlabeled_train_iter)
+        except StopIteration:
             unlabeled_train_iter = iter(unlabeled_trainloader)
             (inputs_u, inputs_u2, inputs_ori), (length_u,
-                                                length_u2, length_ori) = unlabeled_train_iter.next()
+                                                length_u2, length_ori) = next(unlabeled_train_iter)
 
         batch_size = inputs_x.size(0)
         batch_size_2 = inputs_ori.size(0)
         targets_x = torch.zeros(batch_size, n_labels).scatter_(
             1, targets_x.view(-1, 1), 1)
 
-        inputs_x, targets_x = inputs_x.cuda(), targets_x.cuda(non_blocking=True)
-        inputs_u = inputs_u.cuda()
-        inputs_u2 = inputs_u2.cuda()
-        inputs_ori = inputs_ori.cuda()
+        inputs_x, targets_x = inputs_x.to(device), targets_x.to(device)
+        inputs_u = inputs_u.to(device)
+        inputs_u2 = inputs_u2.to(device)
+        inputs_ori = inputs_ori.to(device)
 
         mask = []
 
@@ -310,7 +310,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
                     idx2 = torch.randperm(int(length_b[i]) - length2 + 1)[0]
                     try:
                         mixed_input.append(
-                            torch.cat((input_a[i][idx1: idx1 + length1], torch.tensor([102]).cuda(), input_b[i][idx2:idx2 + length2], torch.tensor([0]*(256-1-length1-length2)).cuda()), dim=0).unsqueeze(0))
+                            torch.cat((input_a[i][idx1: idx1 + length1], torch.tensor([102]).to(device), input_b[i][idx2:idx2 + length2], torch.tensor([0]*(256-1-length1-length2)).to(device)), dim=0).unsqueeze(0))
                     except:
                         print(256 - 1 - length1 - length2,
                               idx2, length2, idx1, length1)
@@ -330,7 +330,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
                 mixed_input = []
                 for i in range(input_a.size(0)):
                     mixed_input.append(
-                        torch.cat((input_a[i][:length_a[i]], torch.tensor([102]).cuda(), input_b[i][:length_b[i]], torch.tensor([0]*(512-1-int(length_a[i])-int(length_b[i]))).cuda()), dim=0).unsqueeze(0))
+                        torch.cat((input_a[i][:length_a[i]], torch.tensor([102]).to(device), input_b[i][:length_b[i]], torch.tensor([0]*(512-1-int(length_a[i])-int(length_b[i]))).to(device)), dim=0).unsqueeze(0))
 
                 mixed_input = torch.cat(mixed_input, dim=0)
                 logits = model(mixed_input, sent_size=512)
@@ -373,7 +373,7 @@ def validate(valloader, model, criterion, epoch, mode):
         correct = 0
 
         for batch_idx, (inputs, targets, length) in enumerate(valloader):
-            inputs, targets = inputs.cuda(), targets.cuda(non_blocking=True)
+            inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
 
