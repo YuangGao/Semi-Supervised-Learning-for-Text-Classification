@@ -2,6 +2,8 @@ import argparse
 import os
 import random
 import math
+import csv
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -79,6 +81,9 @@ parser.add_argument('--margin', default=0.7, type=float, metavar='N',
 parser.add_argument('--lambda-u-hinge', default=0, type=float,
                     help='weight for hinge loss term of unlabeled data')
 
+parser.add_argument('--output-dir', type=str, default='experiments',
+                    help='Directory to save experiment results')
+
 args = parser.parse_args()
 
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -96,6 +101,25 @@ print("Mix layers sets: ", args.mix_layers_set)
 
 def main():
     global best_acc
+    global total_steps
+    global flag
+    
+    # Create output directory with experiment parameters in name
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    exp_name = f"exp_{timestamp}_nlabeled{args.n_labeled}_unlabeled{args.un_labeled}_epochs{args.epochs}_bs{args.batch_size}_mix{args.mix_option}_method{args.mix_method}"
+    experiment_dir = os.path.join(args.output_dir, exp_name)
+    os.makedirs(experiment_dir, exist_ok=True)
+    
+    # Save experiment arguments
+    with open(os.path.join(experiment_dir, 'args.txt'), 'w') as f:
+        for arg in vars(args):
+            f.write(f"{arg}: {getattr(args, arg)}\n")
+    
+    # Initialize CSV file for metrics
+    metrics_file = open(os.path.join(experiment_dir, 'training_metrics.csv'), 'w')
+    metrics_writer = csv.writer(metrics_file)
+    metrics_writer.writerow(['epoch', 'train_loss', 'val_loss', 'val_acc', 'test_loss', 'test_acc', 'Lx', 'Lu', 'Lu2'])
+    
     # Read dataset and build dataloaders
     train_labeled_set, train_unlabeled_set, val_set, test_set, n_labels = get_data(
         args.data_path, args.n_labeled, args.un_labeled, model=args.model, train_aug=args.train_aug)
@@ -127,12 +151,27 @@ def main():
     criterion = nn.CrossEntropyLoss()
 
     test_accs = []
+    
+    # Initialize lists to store metrics
+    train_losses = []
+    val_losses = []
+    val_accs = []
+    test_losses = []
+    test_accs_list = []
+    Lx_list = []
+    Lu_list = []
+    Lu2_list = []
 
     # Start training
     for epoch in range(args.epochs):
-
-        train(labeled_trainloader, unlabeled_trainloader, model, optimizer,
+        # Train and get training loss and components
+        train_loss, Lx, Lu, Lu2 = train(labeled_trainloader, unlabeled_trainloader, model, optimizer,
               scheduler, train_criterion, epoch, n_labels, args.train_aug)
+        
+        train_losses.append(train_loss)
+        Lx_list.append(Lx)
+        Lu_list.append(Lu)
+        Lu2_list.append(Lu2)
 
         # scheduler.step()
 
@@ -142,30 +181,69 @@ def main():
 
         val_loss, val_acc = validate(
             val_loader, model, criterion, epoch, mode='Valid Stats')
+        val_losses.append(val_loss)
+        val_accs.append(val_acc)
 
         print("epoch {}, val acc {}, val_loss {}".format(
             epoch, val_acc, val_loss))
 
+        # Test if validation accuracy improved
+        test_loss, test_acc = None, None
         if val_acc >= best_acc:
             best_acc = val_acc
             test_loss, test_acc = validate(
                 test_loader, model, criterion, epoch, mode='Test Stats ')
             test_accs.append(test_acc)
-            print("epoch {}, test acc {},test loss {}".format(
+            test_losses.append(test_loss)
+            test_accs_list.append(test_acc)
+            print("epoch {}, test acc {}, test loss {}".format(
                 epoch, test_acc, test_loss))
+            
+            # Save model checkpoint
+            checkpoint = {
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'best_acc': best_acc,
+                'test_accs': test_accs
+            }
+            torch.save(checkpoint, os.path.join(experiment_dir, f'checkpoint_epoch_{epoch}.pt'))
+
+        # Write metrics to CSV
+        metrics_writer.writerow([
+            epoch,
+            train_loss,
+            val_loss,
+            val_acc,
+            test_loss if test_loss is not None else '',
+            test_acc if test_acc is not None else '',
+            Lx,
+            Lu,
+            Lu2
+        ])
 
         print('Epoch: ', epoch)
-
         print('Best acc:')
         print(best_acc)
-
         print('Test acc:')
         print(test_accs)
+
+    # Save final metrics
+    metrics_file.close()
+    
+    # Save numpy arrays of metrics
+    np.save(os.path.join(experiment_dir, 'train_losses.npy'), np.array(train_losses))
+    np.save(os.path.join(experiment_dir, 'val_losses.npy'), np.array(val_losses))
+    np.save(os.path.join(experiment_dir, 'val_accs.npy'), np.array(val_accs))
+    np.save(os.path.join(experiment_dir, 'test_losses.npy'), np.array(test_losses))
+    np.save(os.path.join(experiment_dir, 'test_accs.npy'), np.array(test_accs_list))
+    np.save(os.path.join(experiment_dir, 'Lx.npy'), np.array(Lx_list))
+    np.save(os.path.join(experiment_dir, 'Lu.npy'), np.array(Lu_list))
+    np.save(os.path.join(experiment_dir, 'Lu2.npy'), np.array(Lu2_list))
 
     print("Finished training!")
     print('Best acc:')
     print(best_acc)
-
     print('Test acc:')
     print(test_accs)
 
@@ -182,8 +260,16 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
         args.T = 0.9
         flag = 1
 
-    for batch_idx in range(args.val_iteration):
+    total_loss = 0
+    total_Lx = 0
+    total_Lu = 0
+    total_Lu2 = 0
+    num_batches = 0
 
+    print(f"\nEpoch {epoch + 1}/{args.epochs}")
+    print("Training...")
+    
+    for batch_idx in range(args.val_iteration):
         total_steps += 1
 
         if not train_aug:
@@ -231,7 +317,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
             # For DBPedia: German: 1, Russian: 1, ori: 1
             # For IMDB: German: 0, Russian: 0, ori: 1
             # For Yahoo Answers: German: 1, Russian: 0, ori: 1 / German: 0, Russian: 0, ori: 1
-            p = (0 * torch.softmax(outputs_u, dim=1) + 0 * torch.softmax(outputs_u2,
+            p = (1 * torch.softmax(outputs_u, dim=1) + 0 * torch.softmax(outputs_u2,
                                                                          dim=1) + 1 * torch.softmax(outputs_ori, dim=1)) / (1)
             # Do a sharpen here.
             pt = p**(1/args.T)
@@ -359,9 +445,17 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
         optimizer.step()
         # scheduler.step()
 
-        if batch_idx % 1000 == 0:
-            print("epoch {}, step {}, loss {}, Lx {}, Lu {}, Lu2 {}".format(
-                epoch, batch_idx, loss.item(), Lx.item(), Lu.item(), Lu2.item()))
+        # Print progress for every batch
+        print('epoch {}, step {}, loss {}, Lx {}, Lu {}, Lu2 {}'.format(
+            epoch, batch_idx, loss.item(), Lx.item(), Lu.item(), Lu2.item()))
+        
+        total_loss += loss.item()
+        total_Lx += Lx.item()
+        total_Lu += Lu.item()
+        total_Lu2 += Lu2.item()
+        num_batches += 1
+
+    return total_loss / num_batches, total_Lx / num_batches, total_Lu / num_batches, total_Lu2 / num_batches
 
 
 def validate(valloader, model, criterion, epoch, mode):
