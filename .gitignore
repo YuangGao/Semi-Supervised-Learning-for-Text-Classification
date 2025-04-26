@@ -1,0 +1,14 @@
+# Checkpoints and model files
+*.ckpt
+*.pth
+*.pt
+*.h5
+*.hdf5
+*.bin
+*.model
+*.weights
+checkpoints_*/
+.DS_Store
+train*.csv
+test*.csv
+*.pyc
