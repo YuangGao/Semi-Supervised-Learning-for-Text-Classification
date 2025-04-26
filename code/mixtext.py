@@ -3,6 +3,13 @@ import torch.nn as nn
 from transformers import BertPreTrainedModel, BertModel, BertConfig
 from transformers.models.bert.modeling_bert import BertEmbeddings, BertPooler, BertLayer
 
+"""
+This code is based on the MixText implementation from:
+Jiaao Chen, Zichao Yang, Diyi Yang. MixText: Linguistically-Informed Interpolation of Hidden Space for Semi-Supervised Text Classification. 
+In Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics (ACL 2020).
+
+Original implementation: https://github.com/SALT-NLP/MixText
+"""
 
 class BertModel4Mix(BertPreTrainedModel):
     def __init__(self, config):
