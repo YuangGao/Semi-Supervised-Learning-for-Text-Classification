@@ -1,0 +1,24 @@
+epochs: 20
+batch_size: 4
+batch_size_u: 8
+lrmain: 5e-06
+lrlast: 0.0005
+gpu: 0
+n_labeled: 200
+un_labeled: 5000
+val_iteration: 1000
+mix_option: True
+mix_method: 0
+separate_mix: False
+co: False
+train_aug: False
+model: bert-base-uncased
+data_path: ./data/dbpedia_csv/
+mix_layers_set: [7, 9, 12]
+alpha: 16.0
+lambda_u: 1.0
+T: 0.5
+temp_change: 1000000
+margin: 0.7
+lambda_u_hinge: 0
+output_dir: experiments
