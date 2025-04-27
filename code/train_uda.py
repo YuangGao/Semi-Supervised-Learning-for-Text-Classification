@@ -40,10 +40,10 @@ args = parser.parse_args()
 
 
 args = parser.parse_args()
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# n_gpu = torch.cuda.device_count()
-device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-n_gpu = torch.mps.device_count()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+n_gpu = torch.cuda.device_count()
+# device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+# n_gpu = torch.mps.device_count()
 print("GPU num: ", n_gpu)
 
 best_acc = 0
