@@ -33,31 +33,31 @@ class UDA(nn.Module):
             labels=targets
         )
         
-        if labeled and targets is not None:
-            # Apply TSA if this is supervised forward pass
-            loss = self.apply_tsa(outputs.loss, outputs.logits, targets, epoch_progress, tsa_schedule)
-            return loss, outputs.logits
+        # if labeled and targets is not None:
+        #     # Apply TSA if this is supervised forward pass
+        #     loss = self.apply_tsa(outputs.loss, outputs.logits, targets, epoch_progress, tsa_schedule)
+        #     return loss, outputs.logits
         return outputs.logits
 
-    def apply_tsa(self, loss, logits, labels, progress, schedule='linear'):
-        if schedule == 'none':
-            return loss
+    # def apply_tsa(self, loss, logits, labels, progress, schedule='linear'):
+    #     if schedule == 'none':
+    #         return loss
         
-        probs = F.softmax(logits, dim=-1)
-        correct_probs = torch.gather(probs, 1, labels.unsqueeze(1)).squeeze()
+    #     probs = F.softmax(logits, dim=-1)
+    #     correct_probs = torch.gather(probs, 1, labels.unsqueeze(1)).squeeze()
         
-        if schedule == 'linear':
-            threshold = progress
-        elif schedule == 'exp':
-            threshold = torch.exp((progress - 1) * 5)
-        elif schedule == 'log':
-            threshold = 1 - torch.exp((-progress) * 5)
-        else:
-            raise ValueError(f'Unknown TSA schedule: {schedule}')
+    #     if schedule == 'linear':
+    #         threshold = progress
+    #     elif schedule == 'exp':
+    #         threshold = torch.exp((progress - 1) * 5)
+    #     elif schedule == 'log':
+    #         threshold = 1 - torch.exp((-progress) * 5)
+    #     else:
+    #         raise ValueError(f'Unknown TSA schedule: {schedule}')
         
-        mask = (correct_probs < threshold).float()
-        masked_loss = loss * mask
+    #     mask = (correct_probs < threshold).float()
+    #     masked_loss = loss * mask
         
-        if mask.sum() > 0:
-            return masked_loss.sum() / mask.sum()
-        return masked_loss.mean()
+    #     if mask.sum() > 0:
+    #         return masked_loss.sum() / mask.sum()
+    #     return masked_loss.mean()
