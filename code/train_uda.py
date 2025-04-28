@@ -55,21 +55,21 @@ def main():
     global best_acc
     global total_steps
     global flag
-    # # Create output directory with experiment parameters in name
-    # timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    # exp_name = f"exp_{timestamp}_nlabeled{args.n_labeled}_unlabeled{args.un_labeled}_epochs{args.epochs}_bs{args.batch_size}"
-    # experiment_dir = os.path.join(args.output_dir, exp_name)
-    # os.makedirs(experiment_dir, exist_ok=True)
+    # Create output directory with experiment parameters in name
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    exp_name = f"exp_{timestamp}_nlabeled{args.n_labeled}_unlabeled{args.un_labeled}_epochs{args.epochs}_bs{args.batch_size}"
+    experiment_dir = os.path.join(args.output_dir, exp_name)
+    os.makedirs(experiment_dir, exist_ok=True)
     
-    # # Save experiment arguments
-    # with open(os.path.join(experiment_dir, 'args.txt'), 'w') as f:
-    #     for arg in vars(args):
-    #         f.write(f"{arg}: {getattr(args, arg)}\n")
+    # Save experiment arguments
+    with open(os.path.join(experiment_dir, 'args.txt'), 'w') as f:
+        for arg in vars(args):
+            f.write(f"{arg}: {getattr(args, arg)}\n")
     
-    # # Initialize CSV file for metrics
-    # metrics_file = open(os.path.join(experiment_dir, 'training_metrics.csv'), 'w')
-    # metrics_writer = csv.writer(metrics_file)
-    # metrics_writer.writerow(['epoch', 'train_loss', 'val_loss', 'val_acc', 'test_loss', 'test_acc', 'Lx', 'Lu'])
+    # Initialize CSV file for metrics
+    metrics_file = open(os.path.join(experiment_dir, 'training_metrics.csv'), 'w')
+    metrics_writer = csv.writer(metrics_file)
+    metrics_writer.writerow(['epoch', 'train_loss', 'val_loss', 'val_acc', 'test_loss', 'test_acc', 'Lx', 'Lu'])
     
     # Read dataset and build dataloaders
     train_labeled_set, train_unlabeled_set, val_set, test_set, n_labels = get_data(
@@ -100,14 +100,14 @@ def main():
     
     criterion = nn.CrossEntropyLoss()
 
-    test_accs = []
     train_losses = []
+    Lx_list = []
+    Lu_list = []
     val_losses = []
     val_accs = []
     test_accs = []
     test_losses = []
-    Lx_list = []
-    Lu_list = []
+    
 
     # Start training
     for epoch in range(args.epochs):
@@ -124,7 +124,7 @@ def main():
         val_losses.append(val_loss)
         val_accs.append(val_acc)
 
-        print(f"Epoch {epoch}: val_acc = {val_acc:.4f}, val_loss = {val_loss:.4f}")
+        # print(f"Epoch {epoch}: val_acc = {val_acc:.4f}, val_loss = {val_loss:.4f}")
 
         if val_acc >= best_acc:
             best_acc = val_acc
@@ -132,42 +132,44 @@ def main():
                 test_loader, model, criterion, epoch, mode='Test Stats')
             test_accs.append(test_acc)
             test_losses.append(test_loss)
-            print(f"Epoch {epoch}: TEST set acc = {test_acc:.4f}, loss = {test_loss:.4f}")
+            # print(f"Epoch {epoch}: test_acc = {test_acc:.4f}, test_loss = {test_loss:.4f}")
             
-            # # Save model checkpoint
-            # checkpoint = {
-            #     'epoch': epoch,
-            #     'model_state_dict': model.state_dict(),
-            #     'optimizer_state_dict': optimizer.state_dict(),
-            #     'best_acc': best_acc,
-            #     'test_accs': test_accs
-            # }
-            # torch.save(checkpoint, os.path.join(experiment_dir, f'checkpoint_epoch_{epoch}.pt'))
+            # Save model checkpoint
+            checkpoint = {
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'best_acc': best_acc,
+                'test_accs': test_accs
+            }
+            torch.save(checkpoint, os.path.join(experiment_dir, f'checkpoint_epoch_{epoch}.pt'))
 
         end_time = time()
         print(f"Epoch {epoch} completed in {(end_time - start_time)/60:.2f} mins")
         
-    #     # Write metrics to CSV
-    #     metrics_writer.writerow([
-    #         epoch,
-    #         train_loss,
-    #         val_loss,
-    #         val_acc,
-    #         test_loss if test_loss is not None else '',
-    #         test_acc if test_acc is not None else '',
-    #         Lx,
-    #         Lu
-    #     ])
+        # Write metrics to CSV
+        metrics_writer.writerow([
+            epoch,
+            train_loss,
+            val_loss,
+            val_acc,
+            test_loss if test_loss is not None else '',
+            test_acc if test_acc is not None else '',
+            Lx,
+            Lu
+        ])
 
-    #     # Save final metrics
-    #     metrics_file.close()
+    # Save final metrics
+    metrics_file.close()
     
-    # # Save numpy arrays of metrics
-    # np.save(os.path.join(experiment_dir, 'train_losses.npy'), np.array(train_losses))
-    # np.save(os.path.join(experiment_dir, 'val_losses.npy'), np.array(val_losses))
-    # np.save(os.path.join(experiment_dir, 'val_accs.npy'), np.array(val_accs))
-    # np.save(os.path.join(experiment_dir, 'test_losses.npy'), np.array(test_losses))
-    # np.save(os.path.join(experiment_dir, 'test_accs.npy'), np.array(test_accs))
+    # Save numpy arrays of metrics
+    np.save(os.path.join(experiment_dir, 'train_losses.npy'), np.array(train_losses))
+    np.save(os.path.join(experiment_dir, 'val_losses.npy'), np.array(val_losses))
+    np.save(os.path.join(experiment_dir, 'val_accs.npy'), np.array(val_accs))
+    np.save(os.path.join(experiment_dir, 'test_losses.npy'), np.array(test_losses))
+    np.save(os.path.join(experiment_dir, 'test_accs.npy'), np.array(test_accs))
+    np.save(os.path.join(experiment_dir, 'Lx_list.npy'), np.array(Lx_list))
+    np.save(os.path.join(experiment_dir, 'Lu_list.npy'), np.array(Lu_list))
 
 
     print("Finished training!")
@@ -250,21 +252,21 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
         loss_de_ru = compute_kl_loss(logits_u, logits_u2, T=args.T)
         
         unsup_loss = (loss_orig_de + loss_orig_ru + loss_de_ru) / 3
-        total_loss = sup_loss + lambda_u * unsup_loss
+        loss_total = sup_loss + lambda_u * unsup_loss
 
         # Backward pass
         optimizer.zero_grad()
-        total_loss.backward()
+        loss_total.backward()
         optimizer.step()
         
         # Track losses
-        total_loss += total_loss.item()
+        total_loss += loss_total.item()
         Lx_total += sup_loss.item()
         Lu_total += unsup_loss.item()
 
         if batch_idx % 100 == 0:
             print(f"Epoch {epoch} Step {batch_idx}: "
-                  f"Loss={total_loss.item():.4f} "
+                  f"Loss={loss_total.item():.4f} "
                   f"(Lx={sup_loss.item():.4f} "
                   f"Lu={unsup_loss.item():.4f})")
 
