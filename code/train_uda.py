@@ -16,20 +16,24 @@ from torch.utils.data import Dataset
 
 from read_data import *
 from uda import UDA
+from time import time
 
 parser = argparse.ArgumentParser(description='PyTorch UDA')
 parser.add_argument('--data-path', type=str, default='yahoo_answers_csv/')
 parser.add_argument('--n-labeled', type=int, default=10)
 parser.add_argument('--un-labeled', type=int, default=5000)
-parser.add_argument('--val-iteration', type=int, default=1000)
+parser.add_argument('--val-iteration', type=int, default=200)
 parser.add_argument('--model', type=str, default='bert-base-uncased')
 parser.add_argument('--epochs', type=int, default=20)
 parser.add_argument('--batch-size', type=int, default=4)
-parser.add_argument('--batch-size-u', type=int, default=8)
+parser.add_argument('--batch-size-u', type=int, default=24)
 parser.add_argument('--lambda-u', type=float, default=1.0)
 parser.add_argument('--T', type=float, default=0.9, help='sharpening temperature')
 parser.add_argument('--lrmain', type=float, default=5e-6)
+parser.add_argument('--rampup-length', type=int, default=5,
+                    help='length of rampup period for lambda_u')
 parser.add_argument('--lrlast', type=float, default=5e-4)
+
 parser.add_argument('--train_aug', default=False, type=bool, metavar='N',
                     help='augment labeled training data')
 parser.add_argument('--output-dir', type=str, default='uda_exp/',
@@ -38,8 +42,6 @@ parser.add_argument('--output-dir', type=str, default='uda_exp/',
 # parser.add_argument('--patience', type=int, default=5)
 args = parser.parse_args()
 
-
-args = parser.parse_args()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 n_gpu = torch.cuda.device_count()
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
@@ -54,21 +56,22 @@ def main():
     global best_acc
     global total_steps
     global flag
-    # Create output directory with experiment parameters in name
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    exp_name = f"exp_{timestamp}_nlabeled{args.n_labeled}_unlabeled{args.un_labeled}_epochs{args.epochs}_bs{args.batch_size}"
-    experiment_dir = os.path.join(args.output_dir, exp_name)
-    os.makedirs(experiment_dir, exist_ok=True)
+    # # Create output directory with experiment parameters in name
+    # timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # exp_name = f"exp_{timestamp}_nlabeled{args.n_labeled}_unlabeled{args.un_labeled}_epochs{args.epochs}_bs{args.batch_size}"
+    # experiment_dir = os.path.join(args.output_dir, exp_name)
+    # os.makedirs(experiment_dir, exist_ok=True)
     
-    # Save experiment arguments
-    with open(os.path.join(experiment_dir, 'args.txt'), 'w') as f:
-        for arg in vars(args):
-            f.write(f"{arg}: {getattr(args, arg)}\n")
+    # # Save experiment arguments
+    # with open(os.path.join(experiment_dir, 'args.txt'), 'w') as f:
+    #     for arg in vars(args):
+    #         f.write(f"{arg}: {getattr(args, arg)}\n")
     
-    # Initialize CSV file for metrics
-    metrics_file = open(os.path.join(experiment_dir, 'training_metrics.csv'), 'w')
-    metrics_writer = csv.writer(metrics_file)
-    metrics_writer.writerow(['epoch', 'train_loss', 'val_loss', 'val_acc', 'test_loss', 'test_acc', 'Lx', 'Lu', 'Lu2'])
+    # # Initialize CSV file for metrics
+    # metrics_file = open(os.path.join(experiment_dir, 'training_metrics.csv'), 'w')
+    # metrics_writer = csv.writer(metrics_file)
+    # metrics_writer.writerow(['epoch', 'train_loss', 'val_loss', 'val_acc', 'test_loss', 'test_acc', 'Lx', 'Lu'])
+    
     # Read dataset and build dataloaders
     train_labeled_set, train_unlabeled_set, val_set, test_set, n_labels = get_data(
         args.data_path, args.n_labeled, args.un_labeled, model=args.model, train_aug=args.train_aug)
@@ -96,7 +99,6 @@ def main():
     scheduler = None
     #WarmupConstantSchedule(optimizer, warmup_steps=num_warmup_steps)
     
-    train_criterion = SemiLoss()
     criterion = nn.CrossEntropyLoss()
 
     test_accs = []
@@ -105,13 +107,19 @@ def main():
     val_accs = []
     test_losses = []
     test_accs_list = []
+    Lx_list = []
+    Lu_list = []
 
     # Start training
     for epoch in range(args.epochs):
+        start_time = time()
+        print(f"Epoch {epoch + 1}/{args.epochs}")
 
-        train_loss = train(labeled_trainloader, unlabeled_trainloader, model, optimizer,
-              scheduler, train_criterion, epoch, n_labels, args.train_aug)
+        train_loss, Lx, Lu = train(labeled_trainloader, unlabeled_trainloader, model, optimizer,
+              scheduler, criterion, epoch, n_labels, args.train_aug)
         train_losses.append(train_loss)
+        Lx_list.append(Lx)
+        Lu_list.append(Lu)
 
         val_loss, val_acc = validate(val_loader, model, criterion, epoch, mode='Valid Stats')
         val_losses.append(val_loss)
@@ -128,35 +136,40 @@ def main():
             test_accs_list.append(test_acc)
             print(f"Epoch {epoch}: TEST set acc = {test_acc:.4f}, loss = {test_loss:.4f}")
             
-            # Save model checkpoint
-            checkpoint = {
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'best_acc': best_acc,
-                'test_accs': test_accs
-            }
-            torch.save(checkpoint, os.path.join(experiment_dir, f'checkpoint_epoch_{epoch}.pt'))
+            # # Save model checkpoint
+            # checkpoint = {
+            #     'epoch': epoch,
+            #     'model_state_dict': model.state_dict(),
+            #     'optimizer_state_dict': optimizer.state_dict(),
+            #     'best_acc': best_acc,
+            #     'test_accs': test_accs
+            # }
+            # torch.save(checkpoint, os.path.join(experiment_dir, f'checkpoint_epoch_{epoch}.pt'))
 
-        # Write metrics to CSV
-        metrics_writer.writerow([
-            epoch,
-            train_loss,
-            val_loss,
-            val_acc,
-            test_loss if test_loss is not None else '',
-            test_acc if test_acc is not None else ''
-        ])
+        end_time = time()
+        print(f"Epoch {epoch} completed in {(end_time - start_time)/60:.2f} mins")
+        
+    #     # Write metrics to CSV
+    #     metrics_writer.writerow([
+    #         epoch,
+    #         train_loss,
+    #         val_loss,
+    #         val_acc,
+    #         test_loss if test_loss is not None else '',
+    #         test_acc if test_acc is not None else '',
+    #         Lx,
+    #         Lu
+    #     ])
 
-    # Save final metrics
-    metrics_file.close()
+    #     # Save final metrics
+    #     metrics_file.close()
     
-    # Save numpy arrays of metrics
-    np.save(os.path.join(experiment_dir, 'train_losses.npy'), np.array(train_losses))
-    np.save(os.path.join(experiment_dir, 'val_losses.npy'), np.array(val_losses))
-    np.save(os.path.join(experiment_dir, 'val_accs.npy'), np.array(val_accs))
-    np.save(os.path.join(experiment_dir, 'test_losses.npy'), np.array(test_losses))
-    np.save(os.path.join(experiment_dir, 'test_accs.npy'), np.array(test_accs_list))
+    # # Save numpy arrays of metrics
+    # np.save(os.path.join(experiment_dir, 'train_losses.npy'), np.array(train_losses))
+    # np.save(os.path.join(experiment_dir, 'val_losses.npy'), np.array(val_losses))
+    # np.save(os.path.join(experiment_dir, 'val_accs.npy'), np.array(val_accs))
+    # np.save(os.path.join(experiment_dir, 'test_losses.npy'), np.array(test_losses))
+    # np.save(os.path.join(experiment_dir, 'test_accs.npy'), np.array(test_accs_list))
 
 
     print("Finished training!")
@@ -175,9 +188,10 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
     total_loss = 0.0
     Lx_total = 0.0
     Lu_total = 0.0
-    Lu2_total = 0.0
+    lambda_u = args.lambda_u * linear_rampup(epoch, args.rampup_length)
+    print(f"Epoch {epoch}: lambda_u = {lambda_u}")
     
-    epoch_progress = (epoch + 1) / args.epochs  # For TSA
+    # epoch_progress = (epoch + 1) / args.epochs  # For TSA
 
     for batch_idx in range(args.val_iteration):
         total_steps += 1
@@ -215,14 +229,16 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
         mask_ori = create_mask(inputs_ori, length_ori)
 
         # Forward pass for labeled data
-        sup_loss, logits_x = model(
-            (inputs_x, mask_x), 
-            labeled=True,
-            targets=targets_x,
-            epoch_progress=epoch_progress,
-            tsa_schedule='linear'
-        )
-        
+        # sup_loss, logits_x = model(
+        #     (inputs_x, mask_x), 
+        #     labeled=True,
+        #     targets=targets_x,
+        #     epoch_progress=epoch_progress,
+        #     tsa_schedule='linear'
+        # )
+        logits_x = model((inputs_x, mask_x), labeled=True, targets=targets_x)
+        sup_loss = criterion(logits_x, targets_x)
+
         # Forward pass for unlabeled data
         with torch.no_grad():
             logits_ori = model((inputs_ori, mask_ori), labeled=False)
@@ -236,7 +252,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
         loss_de_ru = compute_kl_loss(logits_u, logits_u2, T=args.T)
         
         unsup_loss = (loss_orig_de + loss_orig_ru + loss_de_ru) / 3
-        total_loss = sup_loss + args.lambda_u * unsup_loss
+        total_loss = sup_loss + lambda_u * unsup_loss
 
         # Backward pass
         optimizer.zero_grad()
@@ -254,7 +270,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
                   f"(Lx={sup_loss.item():.4f} "
                   f"Lu={unsup_loss.item():.4f})")
 
-    return total_loss / args.val_iteration
+    return total_loss / args.val_iteration, Lx_total / args.val_iteration, Lu_total / args.val_iteration
 
 def validate(valloader, model, criterion, epoch, mode='Valid Stats'):
     model.eval()
@@ -273,7 +289,7 @@ def validate(valloader, model, criterion, epoch, mode='Valid Stats'):
                 attention_mask[i, :length] = 1
             
             # Forward pass
-            logits = model((inputs, attention_mask), labeled=False)
+            logits = model((inputs, attention_mask), labeled=False).to(device)
             loss = criterion(logits, targets)
             
             # Calculate accuracy
@@ -303,57 +319,12 @@ def compute_kl_loss(p_logits, q_logits, T):
     q = F.log_softmax(q_logits / T, dim=1)
     return F.kl_div(q, p, reduction='batchmean')
 
-def linear_rampup(current, rampup_length=args.epochs):
+def linear_rampup(current, rampup_length):
     if rampup_length == 0:
         return 1.0
     else:
         current = np.clip(current / rampup_length, 0.0, 1.0)
         return float(current)
-
-
-class SemiLoss(object):
-    def __call__(self, outputs_x, targets_x, outputs_u, targets_u, outputs_u_2, epoch, mixed=1):
-
-        if args.mix_method == 0 or args.mix_method == 1:
-
-            Lx = - \
-                torch.mean(torch.sum(F.log_softmax(
-                    outputs_x, dim=1) * targets_x, dim=1))
-
-            probs_u = torch.softmax(outputs_u, dim=1)
-
-            Lu = F.kl_div(probs_u.log(), targets_u, None, None, 'batchmean')
-
-            Lu2 = torch.mean(torch.clamp(torch.sum(-F.softmax(outputs_u, dim=1)
-                                                   * F.log_softmax(outputs_u, dim=1), dim=1) - args.margin, min=0))
-
-        elif args.mix_method == 2:
-            if mixed == 0:
-                Lx = - \
-                    torch.mean(torch.sum(F.logsigmoid(
-                        outputs_x) * targets_x, dim=1))
-
-                probs_u = torch.softmax(outputs_u, dim=1)
-
-                Lu = F.kl_div(probs_u.log(), targets_u,
-                              None, None, 'batchmean')
-
-                Lu2 = torch.mean(torch.clamp(args.margin - torch.sum(
-                    F.softmax(outputs_u_2, dim=1) * F.softmax(outputs_u_2, dim=1), dim=1), min=0))
-            else:
-                Lx = - \
-                    torch.mean(torch.sum(F.log_softmax(
-                        outputs_x, dim=1) * targets_x, dim=1))
-
-                probs_u = torch.softmax(outputs_u, dim=1)
-                Lu = F.kl_div(probs_u.log(), targets_u,
-                              None, None, 'batchmean')
-
-                Lu2 = torch.mean(torch.clamp(args.margin - torch.sum(
-                    F.softmax(outputs_u, dim=1) * F.softmax(outputs_u, dim=1), dim=1), min=0))
-
-        return Lx, Lu, args.lambda_u * linear_rampup(epoch), Lu2, args.lambda_u_hinge * linear_rampup(epoch)
-
 
 if __name__ == '__main__':
     main()
