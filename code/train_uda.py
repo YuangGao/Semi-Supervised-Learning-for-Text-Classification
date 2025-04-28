@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser(description='PyTorch UDA')
 parser.add_argument('--data-path', type=str, default='yahoo_answers_csv/')
 parser.add_argument('--n-labeled', type=int, default=10)
 parser.add_argument('--un-labeled', type=int, default=5000)
-parser.add_argument('--val-iteration', type=int, default=200)
+parser.add_argument('--val-iteration', type=int, default=1000)
 parser.add_argument('--model', type=str, default='bert-base-uncased')
 parser.add_argument('--epochs', type=int, default=20)
 parser.add_argument('--batch-size', type=int, default=4)
@@ -30,10 +30,9 @@ parser.add_argument('--batch-size-u', type=int, default=24)
 parser.add_argument('--lambda-u', type=float, default=1.0)
 parser.add_argument('--T', type=float, default=0.9, help='sharpening temperature')
 parser.add_argument('--lrmain', type=float, default=5e-6)
+parser.add_argument('--lrlast', type=float, default=5e-4)
 parser.add_argument('--rampup-length', type=int, default=5,
                     help='length of rampup period for lambda_u')
-parser.add_argument('--lrlast', type=float, default=5e-4)
-
 parser.add_argument('--train_aug', default=False, type=bool, metavar='N',
                     help='augment labeled training data')
 parser.add_argument('--output-dir', type=str, default='uda_exp/',
@@ -105,8 +104,8 @@ def main():
     train_losses = []
     val_losses = []
     val_accs = []
+    test_accs = []
     test_losses = []
-    test_accs_list = []
     Lx_list = []
     Lu_list = []
 
@@ -133,7 +132,6 @@ def main():
                 test_loader, model, criterion, epoch, mode='Test Stats')
             test_accs.append(test_acc)
             test_losses.append(test_loss)
-            test_accs_list.append(test_acc)
             print(f"Epoch {epoch}: TEST set acc = {test_acc:.4f}, loss = {test_loss:.4f}")
             
             # # Save model checkpoint
@@ -169,7 +167,7 @@ def main():
     # np.save(os.path.join(experiment_dir, 'val_losses.npy'), np.array(val_losses))
     # np.save(os.path.join(experiment_dir, 'val_accs.npy'), np.array(val_accs))
     # np.save(os.path.join(experiment_dir, 'test_losses.npy'), np.array(test_losses))
-    # np.save(os.path.join(experiment_dir, 'test_accs.npy'), np.array(test_accs_list))
+    # np.save(os.path.join(experiment_dir, 'test_accs.npy'), np.array(test_accs))
 
 
     print("Finished training!")
