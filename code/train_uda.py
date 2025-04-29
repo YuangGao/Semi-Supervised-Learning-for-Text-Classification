@@ -249,9 +249,8 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
         # Compute unsupervised losses
         loss_orig_de = compute_kl_loss(logits_ori, logits_u, T=args.T)
         loss_orig_ru = compute_kl_loss(logits_ori, logits_u2, T=args.T)
-        loss_de_ru = compute_kl_loss(logits_u, logits_u2, T=args.T)
         
-        unsup_loss = (loss_orig_de + loss_orig_ru + loss_de_ru) / 3
+        unsup_loss = (loss_orig_de + loss_orig_ru) / 2
         loss_total = sup_loss + lambda_u * unsup_loss
 
         # Backward pass
