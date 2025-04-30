@@ -1,0 +1,15 @@
+data_path: ./data/yahoo_answers_csv/
+n_labeled: 10
+un_labeled: 5000
+val_iteration: 500
+model: bert-base-uncased
+epochs: 20
+batch_size: 8
+batch_size_u: 24
+lambda_u: 0.9
+T: 0.8
+lrmain: 5e-06
+lrlast: 0.0005
+rampup_length: 3
+train_aug: False
+output_dir: uda_exp/
