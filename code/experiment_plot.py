@@ -5,8 +5,18 @@ import os
 import numpy as np
 import glob
 
-# Set the style without LaTeX
+# Set the style without LaTeX and adjust font sizes
 plt.style.use(['science', 'no-latex'])
+plt.rcParams.update({
+    'font.size': 8,          
+    'axes.titlesize': 8,    
+    'axes.labelsize': 8,     
+    'xtick.labelsize': 7,    
+    'ytick.labelsize': 7,    
+    'legend.fontsize': 7,    
+    'figure.dpi': 300,       
+    'figure.figsize': (6, 7) 
+})
 
 def load_experiment_data(exp_dir):
     """Load training metrics from an experiment directory."""
@@ -30,7 +40,7 @@ def find_experiment_dir(base_dir, n_labeled, model_type='bert'):
 def plot_training_curves(bert_data, mixtext_data, uda_data, dataset_name, save_dir='plots'):
     """Plot training curves comparing BERT, MixText, and UDA models."""
     # Create a 3x2 grid of subplots with smaller size
-    fig, axes = plt.subplots(3, 2, figsize=(12, 15))
+    fig, axes = plt.subplots(3, 2, figsize=(6, 7))
     
     # Define colors for consistent plotting
     colors = {'BERT': '#1f77b4', 'MixText': '#ff7f0e', 'UDA': '#2ca02c'}
@@ -46,30 +56,30 @@ def plot_training_curves(bert_data, mixtext_data, uda_data, dataset_name, save_d
         # Left column: Training Loss
         ax_loss = axes[idx, 0]
         ax_loss.plot(epochs, bert_exp['train_loss'], 
-                    label='BERT', color=colors['BERT'], marker='o', markersize=3)
+                    label='BERT', color=colors['BERT'], marker='o', markersize=2, linewidth=1)
         ax_loss.plot(epochs, mixtext_exp['train_loss'], 
-                    label='MixText', color=colors['MixText'], marker='s', markersize=3)
+                    label='MixText', color=colors['MixText'], marker='s', markersize=2, linewidth=1)
         ax_loss.plot(epochs, uda_exp['train_loss'], 
-                    label='UDA', color=colors['UDA'], marker='^', markersize=3)
+                    label='UDA', color=colors['UDA'], marker='^', markersize=2, linewidth=1)
         ax_loss.set_xlabel('Epoch')
         ax_loss.set_ylabel('Training Loss')
         ax_loss.set_title(f'{dataset_name} - Training Loss (n={n_labeled})')
-        ax_loss.legend()
+        ax_loss.legend(frameon=False)
         
         # Right column: Validation Accuracy
         ax_acc = axes[idx, 1]
         ax_acc.plot(epochs, bert_exp['val_acc'], 
-                   label='BERT', color=colors['BERT'], marker='o', markersize=3)
+                   label='BERT', color=colors['BERT'], marker='o', markersize=2, linewidth=1)
         ax_acc.plot(epochs, mixtext_exp['val_acc'], 
-                   label='MixText', color=colors['MixText'], marker='s', markersize=3)
+                   label='MixText', color=colors['MixText'], marker='s', markersize=2, linewidth=1)
         ax_acc.plot(epochs, uda_exp['val_acc'], 
-                   label='UDA', color=colors['UDA'], marker='^', markersize=3)
+                   label='UDA', color=colors['UDA'], marker='^', markersize=2, linewidth=1)
         ax_acc.set_xlabel('Epoch')
         ax_acc.set_ylabel('Validation Accuracy')
         ax_acc.set_title(f'{dataset_name} - Validation Accuracy (n={n_labeled})')
-        ax_acc.legend()
+        ax_acc.legend(frameon=False)
     
-    plt.tight_layout()
+    plt.tight_layout(pad=0.5)
     
     # Create plots directory if it doesn't exist
     os.makedirs(save_dir, exist_ok=True)
