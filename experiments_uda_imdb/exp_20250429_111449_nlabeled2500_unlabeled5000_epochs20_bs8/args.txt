@@ -1,0 +1,15 @@
+data_path: ./data/imdb_csv/
+n_labeled: 2500
+un_labeled: 5000
+val_iteration: 300
+model: bert-base-uncased
+epochs: 20
+batch_size: 8
+batch_size_u: 24
+lambda_u: 0.9
+T: 0.9
+lrmain: 5e-06
+lrlast: 0.0005
+rampup_length: 5
+train_aug: False
+output_dir: uda_exp/
