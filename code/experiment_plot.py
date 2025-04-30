@@ -143,7 +143,7 @@ def process_dataset(dataset_name):
 
 def main():
     # Process each dataset
-    datasets = ['ag_news', 'dbpedia', 'yahoo']
+    datasets = ['ag_news', 'dbpedia', 'yahoo', 'imdb']
     
     for dataset in datasets:
         print(f"Processing {dataset} dataset...")
