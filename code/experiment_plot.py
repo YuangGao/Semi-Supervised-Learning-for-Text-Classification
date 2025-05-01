@@ -39,8 +39,8 @@ def find_experiment_dir(base_dir, n_labeled, model_type='bert'):
 
 def plot_training_curves(bert_data, mixtext_data, uda_data, dataset_name, save_dir='plots'):
     """Plot training curves comparing BERT, MixText, and UDA models."""
-    # Create a 3x2 grid of subplots with smaller size
-    fig, axes = plt.subplots(3, 2, figsize=(6, 7))
+    # Create a 2x3 grid of subplots
+    fig, axes = plt.subplots(2, 3, figsize=(12, 8))
     
     # Define colors for consistent plotting
     colors = {'BERT': '#1f77b4', 'MixText': '#ff7f0e', 'UDA': '#2ca02c'}
@@ -53,30 +53,30 @@ def plot_training_curves(bert_data, mixtext_data, uda_data, dataset_name, save_d
         uda_exp = uda_data[n_labeled]
         epochs = np.arange(len(bert_exp))
         
-        # Left column: Training Loss
-        ax_loss = axes[idx, 0]
+        # First row: Training Loss
+        ax_loss = axes[0, idx]
         ax_loss.plot(epochs, bert_exp['train_loss'], 
                     label='BERT', color=colors['BERT'], marker='o', markersize=2, linewidth=1)
         ax_loss.plot(epochs, mixtext_exp['train_loss'], 
                     label='MixText', color=colors['MixText'], marker='s', markersize=2, linewidth=1)
         ax_loss.plot(epochs, uda_exp['train_loss'], 
                     label='UDA', color=colors['UDA'], marker='^', markersize=2, linewidth=1)
-        ax_loss.set_xlabel('Epoch')
-        ax_loss.set_ylabel('Training Loss')
-        ax_loss.set_title(f'{dataset_name} - Training Loss (n={n_labeled})')
+        ax_loss.set_xlabel('Epoch', fontsize=12)
+        ax_loss.set_ylabel('Training Loss', fontsize=12)
+        ax_loss.set_title(f'{dataset_name} - Training Loss (n={n_labeled})', fontsize=12)
         ax_loss.legend(frameon=False)
         
-        # Right column: Validation Accuracy
-        ax_acc = axes[idx, 1]
+        # Second row: Validation Accuracy
+        ax_acc = axes[1, idx]
         ax_acc.plot(epochs, bert_exp['val_acc'], 
                    label='BERT', color=colors['BERT'], marker='o', markersize=2, linewidth=1)
         ax_acc.plot(epochs, mixtext_exp['val_acc'], 
                    label='MixText', color=colors['MixText'], marker='s', markersize=2, linewidth=1)
         ax_acc.plot(epochs, uda_exp['val_acc'], 
                    label='UDA', color=colors['UDA'], marker='^', markersize=2, linewidth=1)
-        ax_acc.set_xlabel('Epoch')
-        ax_acc.set_ylabel('Validation Accuracy')
-        ax_acc.set_title(f'{dataset_name} - Validation Accuracy (n={n_labeled})')
+        ax_acc.set_xlabel('Epoch', fontsize=12)
+        ax_acc.set_ylabel('Validation Accuracy', fontsize=12)
+        ax_acc.set_title(f'{dataset_name} - Validation Accuracy (n={n_labeled})', fontsize=12)
         ax_acc.legend(frameon=False)
     
     plt.tight_layout(pad=0.5)
@@ -109,9 +109,9 @@ def plot_best_test_accuracy(bert_data, mixtext_data, uda_data, dataset_name, sav
     plt.plot(n_labeled, mixtext_acc, label='MixText', color=colors['MixText'], marker='s', markersize=4, linewidth=1.5)
     plt.plot(n_labeled, uda_acc, label='UDA', color=colors['UDA'], marker='^', markersize=4, linewidth=1.5)
     
-    plt.xlabel('Number of Labeled Samples')
-    plt.ylabel('Best Test Accuracy')
-    plt.title(f'{dataset_name} - Best Test Accuracy Comparison')
+    plt.xlabel('Number of Labeled Samples', fontsize=16)
+    plt.ylabel('Best Test Accuracy', fontsize=16)
+    plt.title(f'{dataset_name} - Best Test Accuracy Comparison', fontsize=16)
     plt.legend(frameon=False)
     
     # Set x-axis to log scale for better visualization
