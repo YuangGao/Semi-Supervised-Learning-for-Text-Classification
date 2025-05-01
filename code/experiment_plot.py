@@ -32,9 +32,9 @@ def find_experiment_dir(base_dir, n_labeled, model_type='bert'):
     else:  # uda
         pattern = f"{base_dir}/exp_*_nlabeled{n_labeled}_unlabeled5000_epochs20_bs8"
     
-    matching_dirs = glob.glob(pattern)
+    matching_dirs = sorted(glob.glob(pattern))
     if matching_dirs:
-        return matching_dirs[0]  # Return the first matching directory
+        return matching_dirs[-1]  # Return the last matching directory
     return None
 
 def plot_training_curves(bert_data, mixtext_data, uda_data, dataset_name, save_dir='plots'):
