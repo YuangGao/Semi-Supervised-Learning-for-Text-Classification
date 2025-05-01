@@ -89,6 +89,42 @@ def plot_training_curves(bert_data, mixtext_data, uda_data, dataset_name, save_d
     plt.savefig(os.path.join(save_dir, filename), dpi=300, bbox_inches='tight')
     plt.close()
 
+def plot_best_test_accuracy(bert_data, mixtext_data, uda_data, dataset_name, save_dir='plots'):
+    """Plot best test accuracy comparison across different numbers of labeled samples."""
+    plt.figure(figsize=(6, 4))
+    
+    # Define colors for consistent plotting
+    colors = {'BERT': '#1f77b4', 'MixText': '#ff7f0e', 'UDA': '#2ca02c'}
+    
+    # Prepare data points
+    n_labeled = [10, 200, 2500]
+    
+    # Get best test accuracy for each model
+    bert_acc = [bert_data[str(n)]['test_acc'].max() for n in n_labeled]
+    mixtext_acc = [mixtext_data[str(n)]['test_acc'].max() for n in n_labeled]
+    uda_acc = [uda_data[str(n)]['test_acc'].max() for n in n_labeled]
+    
+    # Plot lines with markers
+    plt.plot(n_labeled, bert_acc, label='BERT', color=colors['BERT'], marker='o', markersize=4, linewidth=1.5)
+    plt.plot(n_labeled, mixtext_acc, label='MixText', color=colors['MixText'], marker='s', markersize=4, linewidth=1.5)
+    plt.plot(n_labeled, uda_acc, label='UDA', color=colors['UDA'], marker='^', markersize=4, linewidth=1.5)
+    
+    plt.xlabel('Number of Labeled Samples')
+    plt.ylabel('Best Test Accuracy')
+    plt.title(f'{dataset_name} - Best Test Accuracy Comparison')
+    plt.legend(frameon=False)
+    
+    # Set x-axis to log scale for better visualization
+    plt.xscale('log')
+    
+    # Create plots directory if it doesn't exist
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Save the plot
+    filename = f'{dataset_name.lower()}_best_test_accuracy_comparison.png'
+    plt.savefig(os.path.join(save_dir, filename), dpi=300, bbox_inches='tight')
+    plt.close()
+
 def process_dataset(dataset_name):
     """Process and plot results for a specific dataset."""
     # Base directories for experiments
@@ -140,6 +176,7 @@ def process_dataset(dataset_name):
     
     # Create comparison plots
     plot_training_curves(bert_data, mixtext_data, uda_data, dataset_name, save_dir='plots')
+    plot_best_test_accuracy(bert_data, mixtext_data, uda_data, dataset_name, save_dir='plots')
 
 def main():
     # Process each dataset
